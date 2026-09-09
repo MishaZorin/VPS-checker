@@ -1,15 +1,18 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
+import { Controller, Post, Body } from '@nestjs/common';
 import { MetricsService } from './metrics.service';
-import { CreateMetricDto } from './dto/create-metric.dto';
-import { UpdateMetricDto } from './dto/update-metric.dto';
+
+class CheckConnectionDto {
+  host!: string;
+  username!: string;
+  privateKey!: string;
+}
 
 @Controller('metrics')
 export class MetricsController {
   constructor(private readonly metricsService: MetricsService) {}
 
-  @Get('connect')
-  async connect() {
-    const result = await this.metricsService.checkConnection();
-    return { status: result };
+  @Post('check')
+  check(@Body() dto: CheckConnectionDto) {
+    return this.metricsService.checkConnection(dto.host, dto.username, dto.privateKey);
   }
 }

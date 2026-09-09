@@ -1,18 +1,31 @@
-import { Controller, Get } from '@nestjs/common';
 import { Injectable } from '@nestjs/common';
 import { Client } from 'ssh2';
-import { readFileSync } from 'fs';
 
-//  здесь промис это ожидание, а resolve это успех типо сначла хдем а потом уже resolve
 @Injectable()
 export class MetricsService {
-  checkConnection(): Promise<string> {
+  checkConnection(host: string, username: string, privateKey: string): Promise<string> {
     return new Promise((resolve) => {
       const conn = new Client();
 
       conn.on('ready', () => {
-        conn.end();
-        resolve('Успешно: Подключение к SSH установлено!');
+        conn.exec('uptime', (err, stream) => {
+    if (err) {
+      resolve(`Ошибка выполнения команды: ${err.message}`);
+      return;
+    }
+
+    let output = '';
+
+    stream.on('data', (data: Buffer) => {
+      output += data.toString(); // собираем кусочки вывода команды
+    });
+
+    stream.on('close', () => {
+      conn.end(); // закрываем соединение только теперь, когда команда выполнилась
+      resolve(output.trim()); // отдаём результат наружу
+    });
+  });
+        // resolve('Успешно: Подключение к SSH установлено!');
       });
 
       conn.on('error', (err) => {
@@ -20,10 +33,10 @@ export class MetricsService {
       });
 
       conn.connect({
-        host: '78.24.222.54', 
+        host,
         port: 22,
-        username: 'root',
-        privateKey: readFileSync('/path/to/your/private_key'), 
+        username,
+        privateKey, // теперь это просто строка, а не путь к файлу
       });
     });
   }
