@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import './App.css';
 
 interface Server {
@@ -16,15 +16,26 @@ interface Metrics {
   disk: { used: number; total: number; percent: number };
 }
 const API_URL = 'http://localhost:3000';
+
 export default function App() {
   const [authType, setAuthType] = useState<'password' | 'key'>('key');
   const [host, setHost] = useState('');
   const [username, setUsername] = useState('');
   const [secret, setSecret] = useState('');
+  const [rawOutput, setRawOutput] = useState<string | null>(null);
 
-  const [servers, setServers] = useState<Server[]>([
-    
-  ]);
+ const [servers, setServers] = useState<Server[]>(() => {
+
+  const savedServers = localStorage.getItem('servers');
+  
+
+  return savedServers ? JSON.parse(savedServers) : [];
+});
+
+
+useEffect(() => {
+  localStorage.setItem('servers', JSON.stringify(servers));
+}, [servers]);
 
   const [activeId, setActiveId] = useState<string | null>(null);
   const [metrics, setMetrics] = useState<Metrics | null>(null);
@@ -51,13 +62,19 @@ const handleShowMetrics = async (id: string) => {
   if (!server) return;
 
   try {
+    // 🛠 Заменяем текстовые '\n' на настоящие символы переноса строки для SSH
+    const formattedKey = server.privateKey
+      .replace(/\\n/g, '\n') 
+      .trim();
+
+  
     const res = await fetch(`${API_URL}/metrics/check`, {
-      method: 'POST',
+      method: 'POST', 
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         host: server.host,
         username: server.username,
-        privateKey: server.privateKey, // нужно хранить это в объекте Server на фронте
+        privateKey: formattedKey, 
       }),
     });
 
@@ -65,13 +82,24 @@ const handleShowMetrics = async (id: string) => {
       throw new Error(`Ошибка сервера: ${res.status}`);
     }
 
-    const data = await res.json();
-    setMetrics(data);
+    const textData = await res.text();
+    
+    console.log('Сырые данные от сервера:', textData);
+
+  
+    setMetrics({
+      uptime: textData
+    } as unknown as Metrics);
+    setRawOutput(textData);
+
+  
   } catch (err) {
     console.error('Не удалось получить метрики:', err);
     setMetrics(null);
   }
 };
+
+
   return (
     <div className="page">
       <header className="header">
@@ -176,19 +204,19 @@ const handleShowMetrics = async (id: string) => {
             </div>
 
             <div className="metric-box">
-              <div className="metric-label">RAM</div>
+              <div className="metric-label">free -h</div>
               <div className="metric-value">
-                {metrics.ram.used} / {metrics.ram.total} MB
+                {rawOutput}
               </div>
-              <div className="progress-bar">
+              {/* <div className="progress-bar">
                 <div
                   className="progress-fill"
                   style={{ width: `${(metrics.ram.used / metrics.ram.total) * 100}%` }}
                 />
-              </div>
+              </div> */}
             </div>
 
-            <div className="metric-box">
+            {/* <div className="metric-box">
               <div className="metric-label">Disk</div>
               <div className="metric-value">
                 {metrics.disk.used}GB / {metrics.disk.total}GB ({metrics.disk.percent}%)
@@ -196,7 +224,7 @@ const handleShowMetrics = async (id: string) => {
               <div className="progress-bar">
                 <div className="progress-fill" style={{ width: `${metrics.disk.percent}%` }} />
               </div>
-            </div>
+            </div> */}
           </div>
         </section>
       )}
