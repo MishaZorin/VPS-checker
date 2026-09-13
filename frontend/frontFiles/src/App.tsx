@@ -7,38 +7,36 @@ interface Server {
   username: string;
   privateKey: string;
   online: boolean;
-  
 }
 
-interface Metrics {
-  uptime: string;
-  ram: { used: number; total: number };
-  disk: { used: number; total: number; percent: number };
-}
 const API_URL = 'http://localhost:3000';
+
+// Все метрики, которые нужно получить одним кликом
+const METRICS = ['uptime', 'ram', 'disk', 'cpu', 'ports', 'processes', 'docker'];
+
+interface MetricResult {
+  label: string;
+  value: string;
+}
 
 export default function App() {
   const [authType, setAuthType] = useState<'password' | 'key'>('key');
   const [host, setHost] = useState('');
   const [username, setUsername] = useState('');
   const [secret, setSecret] = useState('');
-  const [rawOutput, setRawOutput] = useState<string | null>(null);
 
- const [servers, setServers] = useState<Server[]>(() => {
+  const [servers, setServers] = useState<Server[]>(() => {
+    const savedServers = localStorage.getItem('servers');
+    return savedServers ? JSON.parse(savedServers) : [];
+  });
 
-  const savedServers = localStorage.getItem('servers');
-  
-
-  return savedServers ? JSON.parse(savedServers) : [];
-});
-
-
-useEffect(() => {
-  localStorage.setItem('servers', JSON.stringify(servers));
-}, [servers]);
+  useEffect(() => {
+    localStorage.setItem('servers', JSON.stringify(servers));
+  }, [servers]);
 
   const [activeId, setActiveId] = useState<string | null>(null);
-  const [metrics, setMetrics] = useState<Metrics | null>(null);
+  const [results, setResults] = useState<MetricResult[]>([]);
+  const [loading, setLoading] = useState(false);
 
   function handleAddServer() {
     if (!host || !username) return;
@@ -47,7 +45,7 @@ useEffect(() => {
       host,
       username,
       online: false,
-      privateKey: secret
+      privateKey: secret,
     };
     setServers((prev) => [...prev, newServer]);
     setHost('');
@@ -55,50 +53,44 @@ useEffect(() => {
     setSecret('');
   }
 
-const handleShowMetrics = async (id: string) => {
-  setActiveId(id);
+  // Запрашивает СРАЗУ ВСЕ команды из списка METRICS для одного сервера
+  const handleShowMetrics = async (serverId: string) => {
+    setActiveId(serverId);
+    setLoading(true);
+    setResults([]);
 
-  const server = servers.find((s) => s.id === id);
-  if (!server) return;
-
-  try {
-    // 🛠 Заменяем текстовые '\n' на настоящие символы переноса строки для SSH
-    const formattedKey = server.privateKey
-      .replace(/\\n/g, '\n') 
-      .trim();
-
-  
-    const res = await fetch(`${API_URL}/metrics/check`, {
-      method: 'POST', 
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        host: server.host,
-        username: server.username,
-        privateKey: formattedKey, 
-      }),
-    });
-
-    if (!res.ok) {
-      throw new Error(`Ошибка сервера: ${res.status}`);
+    const server = servers.find((s) => s.id === serverId);
+    if (!server) {
+      setLoading(false);
+      return;
     }
 
-    const textData = await res.text();
-    
-    console.log('Сырые данные от сервера:', textData);
+    const formattedKey = server.privateKey.replace(/\\n/g, '\n').trim();
 
-  
-    setMetrics({
-      uptime: textData
-    } as unknown as Metrics);
-    setRawOutput(textData);
+    // Один запрос на каждую метрику, все параллельно через Promise.all
+    const requests = METRICS.map(async (metricName) => {
+      try {
+        const res = await fetch(`${API_URL}/metrics/${metricName}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            host: server.host,
+            username: server.username,
+            privateKey: formattedKey,
+          }),
+        });
 
-  
-  } catch (err) {
-    console.error('Не удалось получить метрики:', err);
-    setMetrics(null);
-  }
-};
+        const text = res.ok ? await res.text() : `Ошибка: ${res.status}`;
+        return { label: metricName, value: text };
+      } catch (err) {
+        return { label: metricName, value: `Ошибка: ${err}` };
+      }
+    });
 
+    const allResults = await Promise.all(requests);
+    setResults(allResults);
+    setLoading(false);
+  };
 
   return (
     <div className="page">
@@ -188,43 +180,25 @@ const handleShowMetrics = async (id: string) => {
         </div>
       </section>
 
-      {metrics && (
+      {(loading || results.length > 0) && (
         <section className="card">
           <div className="metrics-header">
-            <h2>Метрики</h2>
-            <button className="btn-secondary" onClick={() => activeId && handleShowMetrics(activeId)}>
+            <h2>Метрики{loading ? ' (загрузка...)' : ''}</h2>
+            <button
+              className="btn-secondary"
+              onClick={() => activeId && handleShowMetrics(activeId)}
+            >
               Обновить
             </button>
           </div>
 
           <div className="metrics-grid">
-            <div className="metric-box">
-              <div className="metric-label">Uptime</div>
-              <div className="metric-value">{metrics.uptime}</div>
-            </div>
-
-            <div className="metric-box">
-              <div className="metric-label">free -h</div>
-              <div className="metric-value">
-                {rawOutput}
+            {results.map((r) => (
+              <div className="metric-box" key={r.label}>
+                <div className="metric-label">{r.label}</div>
+                <pre className="raw-output">{r.value}</pre>
               </div>
-              {/* <div className="progress-bar">
-                <div
-                  className="progress-fill"
-                  style={{ width: `${(metrics.ram.used / metrics.ram.total) * 100}%` }}
-                />
-              </div> */}
-            </div>
-
-            {/* <div className="metric-box">
-              <div className="metric-label">Disk</div>
-              <div className="metric-value">
-                {metrics.disk.used}GB / {metrics.disk.total}GB ({metrics.disk.percent}%)
-              </div>
-              <div className="progress-bar">
-                <div className="progress-fill" style={{ width: `${metrics.disk.percent}%` }} />
-              </div>
-            </div> */}
+            ))}
           </div>
         </section>
       )}
