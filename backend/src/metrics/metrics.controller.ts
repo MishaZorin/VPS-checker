@@ -17,6 +17,10 @@ export class MetricsController {
   getUptime(@Body() dto: CheckConnectionDto) {
     return this.metricsService.getUptime(dto.host, dto.username, dto.privateKey);
   }
+  @Post('logs')
+getLogs(@Body() dto: CheckConnectionDto) {
+  return this.metricsService.getLogs(dto.host, dto.username, dto.privateKey);
+}
 
   @Post('ram')
   getRam(@Body() dto: CheckConnectionDto) {

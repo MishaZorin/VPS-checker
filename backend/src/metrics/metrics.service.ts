@@ -71,6 +71,12 @@ async getDockerContainers(host: string, username: string, privateKey: string): P
   conn.end();
   return dockerRaw;
 }
+async getLogs(host: string, username: string, privateKey: string): Promise<string> {
+  const conn = await this.connectToServer(host, username, privateKey);
+  const logsRaw = await this.execCommand(conn, 'journalctl -p err -n 20 --no-pager');
+  conn.end();
+  return logsRaw;
+}
   connectToServer(host: string, username: string, privateKey: string): Promise<Client> {
     return new Promise((resolve, reject) => {
       const conn = new Client();

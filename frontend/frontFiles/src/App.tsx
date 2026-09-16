@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState,useEffect } from 'react';
 import './App.css';
 
 interface Server {
@@ -12,46 +12,136 @@ interface Server {
 const API_URL = 'http://localhost:3000';
 
 // Все метрики, которые нужно получить одним кликом
-const METRICS = ['uptime', 'ram', 'disk', 'cpu', 'ports', 'processes', 'docker'];
+const METRICS = ['uptime', 'ram', 'disk', 'cpu', 'ports', 'processes', 'docker', 'logs'];
 
 interface MetricResult {
   label: string;
   value: string;
 }
 
+const METRIC_ICONS: Record<string, string> = {
+  uptime: '⏱',
+  ram: '🧠',
+  disk: '💾',
+  cpu: '⚡',
+  ports: '🔌',
+  processes: '📋',
+  docker: '🐳',
+  logs: '📜',
+};
+
 export default function App() {
+  // --- Авторизация (только в памяти, без localStorage — сбрасывается при обновлении страницы) ---
+  const [token, setToken] = useState<string | null>(null);
+  const [isRegister, setIsRegister] = useState(false);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [usernameAuth, setUsernameAuth] = useState('');
+  const [error, setError] = useState('');
+  const [authLoading, setAuthLoading] = useState(false);
+
+  // --- Форма добавления сервера ---
   const [authType, setAuthType] = useState<'password' | 'key'>('key');
   const [host, setHost] = useState('');
   const [username, setUsername] = useState('');
   const [secret, setSecret] = useState('');
 
-  const [servers, setServers] = useState<Server[]>(() => {
-    const savedServers = localStorage.getItem('servers');
-    return savedServers ? JSON.parse(savedServers) : [];
-  });
-
-  useEffect(() => {
-    localStorage.setItem('servers', JSON.stringify(servers));
-  }, [servers]);
+  // Серверы теперь тоже только в памяти — без localStorage, сбрасываются при обновлении страницы
+  const [servers, setServers] = useState<Server[]>([]);
 
   const [activeId, setActiveId] = useState<string | null>(null);
   const [results, setResults] = useState<MetricResult[]>([]);
   const [loading, setLoading] = useState(false);
 
-  function handleAddServer() {
-    if (!host || !username) return;
-    const newServer: Server = {
-      id: Date.now().toString(),
-      host,
-      username,
-      online: false,
-      privateKey: secret,
-    };
-    setServers((prev) => [...prev, newServer]);
+  const handleLogout = () => {
+    setToken(null);
+  };
+
+  const handleAuth = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setAuthLoading(true);
+
+    const endpoint = isRegister ? '/auth/register' : '/auth/login';
+
+    // Формируем payload: если регистрация — передаём username, email, password
+    const payload = isRegister
+      ? { username: usernameAuth, email, password }
+      : { email, password };
+
+    try {
+      const res = await fetch(`${API_URL}${endpoint}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        // Если NestJS вернул массив ошибок от class-validator
+        const errorMessage = Array.isArray(data.message)
+          ? data.message.join(', ')
+          : data.message;
+        throw new Error(errorMessage || 'AUTH_FAILED');
+      }
+
+      setToken(data.access_token);
+    } catch (err: any) {
+      setError(err.message || 'AUTH_ERROR');
+    } finally {
+      setAuthLoading(false);
+    }
+  };
+
+  // Добавь этот useEffect после объявления servers/token,
+// он подгружает сервера с бэка сразу после входа
+useEffect(() => {
+  if (!token) return;
+
+  fetch(`${API_URL}/servers`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+    .then((res) => res.json())
+    .then((data) => setServers(data))
+    .catch((err) => console.error('Не удалось загрузить сервера:', err));
+}, [token]);
+
+// Замени handleAddServer на асинхронную версию —
+// теперь она реально отправляет данные на бэк, а не просто кладёт в локальный state
+async function handleAddServer() {
+  if (!host || !username || !secret) return;
+
+  try {
+    const res = await fetch(`${API_URL}/servers`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        host,
+        username,
+        authType,
+        privateKey: secret,
+      }),
+    });
+
+    if (!res.ok) {
+      throw new Error(`Ошибка сохранения сервера: ${res.status}`);
+    }
+
+    const savedServer = await res.json();
+
+    // Добавляем в список именно то, что реально сохранилось в БД (с настоящим id)
+    setServers((prev) => [...prev, savedServer]);
+
     setHost('');
     setUsername('');
     setSecret('');
+  } catch (err) {
+    console.error(err);
   }
+}
 
   // Запрашивает СРАЗУ ВСЕ команды из списка METRICS для одного сервера
   const handleShowMetrics = async (serverId: string) => {
@@ -72,7 +162,10 @@ export default function App() {
       try {
         const res = await fetch(`${API_URL}/metrics/${metricName}`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
           body: JSON.stringify({
             host: server.host,
             username: server.username,
@@ -92,10 +185,87 @@ export default function App() {
     setLoading(false);
   };
 
+  // --- Пока нет токена — показываем экран входа/регистрации ---
+  if (!token) {
+    return (
+      <div className="page auth-page">
+        <div className="card auth-card">
+          <h1 className="auth-title">VPS Checker</h1>
+          <p className="auth-subtitle">
+            {isRegister ? 'Создайте аккаунт' : 'Войдите в аккаунт'}
+          </p>
+
+          <form onSubmit={handleAuth}>
+            {isRegister && (
+              <div className="form-row">
+                <label>Username</label>
+                <input
+                  type="text"
+                  placeholder="misha"
+                  value={usernameAuth}
+                  onChange={(e) => setUsernameAuth(e.target.value)}
+                  required
+                />
+              </div>
+            )}
+
+            <div className="form-row">
+              <label>Email</label>
+              <input
+                type="email"
+                placeholder="you@example.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+              />
+            </div>
+
+            <div className="form-row">
+              <label>Password</label>
+              <input
+                type="password"
+                placeholder="••••••••"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+              />
+            </div>
+
+            {error && <div className="auth-error">{error}</div>}
+
+            <button className="btn-primary auth-submit" type="submit" disabled={authLoading}>
+              {authLoading
+                ? 'Подождите...'
+                : isRegister
+                ? 'Зарегистрироваться'
+                : 'Войти'}
+            </button>
+          </form>
+
+          <button
+            className="auth-toggle"
+            onClick={() => {
+              setIsRegister((prev) => !prev);
+              setError('');
+            }}
+          >
+            {isRegister
+              ? 'Уже есть аккаунт? Войти'
+              : 'Нет аккаунта? Зарегистрироваться'}
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // --- Основной экран после входа ---
   return (
     <div className="page">
       <header className="header">
         <h1>VPS Checker</h1>
+        <button className="btn-secondary" onClick={handleLogout}>
+          Выйти
+        </button>
       </header>
 
       <section className="card">
@@ -195,7 +365,10 @@ export default function App() {
           <div className="metrics-grid">
             {results.map((r) => (
               <div className="metric-box" key={r.label}>
-                <div className="metric-label">{r.label}</div>
+                <div className="metric-label">
+                  <span className="metric-icon">{METRIC_ICONS[r.label] ?? '▸'}</span>
+                  {r.label}
+                </div>
                 <pre className="raw-output">{r.value}</pre>
               </div>
             ))}

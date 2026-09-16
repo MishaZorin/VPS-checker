@@ -11,6 +11,7 @@ app.enableCors()
     .setVersion('1.0')
     .addBearerAuth() // если используешь JWT-авторизацию
     .build();
+    // http://localhost:3000/api
 
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api', app, document); // доступно по /api
