@@ -31,8 +31,11 @@ const METRIC_ICONS: Record<string, string> = {
 };
 
 export default function App() {
-  // --- Авторизация (только в памяти, без localStorage — сбрасывается при обновлении страницы) ---
-  const [token, setToken] = useState<string | null>(null);
+// чтобы приложение узнало о вашей авторизации мгновенно
+const [token, setToken] = useState<string | null>(() => {
+  return localStorage.getItem('token');
+});
+
   const [isRegister, setIsRegister] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -54,6 +57,7 @@ export default function App() {
   const [loading, setLoading] = useState(false);
 
   const handleLogout = () => {
+    localStorage.removeItem('token'); 
     setToken(null);
   };
 
@@ -86,6 +90,7 @@ export default function App() {
       }
 
       setToken(data.access_token);
+      localStorage.setItem('token', data.access_token);
     } catch (err: any) {
       setError(err.message || 'AUTH_ERROR');
     } finally {
@@ -93,21 +98,7 @@ export default function App() {
     }
   };
 
-  // Добавь этот useEffect после объявления servers/token,
-// он подгружает сервера с бэка сразу после входа
-useEffect(() => {
-  if (!token) return;
 
-  fetch(`${API_URL}/servers`, {
-    headers: { Authorization: `Bearer ${token}` },
-  })
-    .then((res) => res.json())
-    .then((data) => setServers(data))
-    .catch((err) => console.error('Не удалось загрузить сервера:', err));
-}, [token]);
-
-// Замени handleAddServer на асинхронную версию —
-// теперь она реально отправляет данные на бэк, а не просто кладёт в локальный state
 async function handleAddServer() {
   if (!host || !username || !secret) return;
 
@@ -142,8 +133,37 @@ async function handleAddServer() {
     console.error(err);
   }
 }
+const handleDeleteServer = async (serverId: string) => {
+  try {
+    const res = await fetch(`${API_URL}/servers/${serverId}`, {
+      method: "DELETE",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
 
-  // Запрашивает СРАЗУ ВСЕ команды из списка METRICS для одного сервера
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({}));
+
+      throw new Error(
+        errorData.message || `Ошибка сервера: ${res.status}`
+      );
+    }
+
+    // Удаляем сервер из отображаемого списка
+    setServers(prev =>
+      prev.filter(server => server.id !== serverId)
+    );
+
+    // Очищаем результаты только после успешного удаления
+    setResults([]);
+
+  } catch (error) {
+    console.error("Ошибка при удалении сервера:", error);
+  }
+};
+
+  
   const handleShowMetrics = async (serverId: string) => {
     setActiveId(serverId);
     setLoading(true);
@@ -345,6 +365,10 @@ async function handleAddServer() {
               <button className="btn-secondary" onClick={() => handleShowMetrics(s.id)}>
                 Показать метрики
               </button>
+              <button className="btn-secondary" onClick={() =>  handleDeleteServer(s.id)}>
+                Удалить
+              </button>
+              
             </div>
           ))}
         </div>
