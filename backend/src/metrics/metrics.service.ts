@@ -78,37 +78,37 @@ async getLogs(host: string, username: string, privateKey: string): Promise<strin
   return logsRaw;
 }
   connectToServer(host: string, username: string, privateKey: string): Promise<Client> {
-    return new Promise((resolve, reject) => {
-      const conn = new Client();
+  return new Promise((resolve, reject) => {
+    const conn = new Client();
 
-      conn.on('ready', () => {
-        resolve(conn); 
-      });
-
-      conn.on('error', (err) => {
-        reject('проверьте подключение');
-      });
-
-      try {
-        // --- САМОЕ ПРОСТОЕ ИСПРАВЛЕННОЕ ДЕШИФРОВАНИЕ ДЛЯ MVP ---
-        const algorithm = 'aes-256-cbc';
-        const key = Buffer.from(process.env.ENCRYPTION_KEY || 'default_key_must_be_32_bytes_long_');
-        const iv = Buffer.alloc(16, 0); // Фиксированный пустой вектор на 16 байт
-
-        const decipher = crypto.createDecipheriv(algorithm, key, iv);
-        let decryptedKey = decipher.update(privateKey, 'hex', 'utf8');
-        decryptedKey += decipher.final('utf8');
-        // -----------------------------------------------------
-
-        conn.connect({
-          host,
-          port: 22,
-          username,
-          privateKey: decryptedKey, // Передаем успешно расшифрованный ключ
-        });
-      } catch (err) {
-        reject('Ошибка расшифровки ключа');
-      }
+    conn.on('ready', () => {
+      resolve(conn); 
     });
-  }
+
+    conn.on('error', (err) => {
+      reject('проверьте подключение');
+    });
+
+    try {
+      // ИСПОЛЬЗУЕМ ТОТ ЖЕ ХАРДКОДНЫЙ КЛЮЧ, ЧТО И ПРИ СОХРАНЕНИИ
+      const algorithm = 'aes-256-cbc';
+      const key = Buffer.from('12345678901234567890123456789012'); // Убрали process.env
+      const iv = Buffer.alloc(16, 0); 
+
+      const decipher = crypto.createDecipheriv(algorithm, key, iv);
+      let decryptedKey = decipher.update(privateKey, 'hex', 'utf8');
+      decryptedKey += decipher.final('utf8');
+
+      conn.connect({
+        host,
+        port: 22,
+        username,
+        privateKey: decryptedKey, 
+      });
+    } catch (err) {
+      reject('Ошибка расшифровки ключа');
+    }
+  });
+}
+
 }

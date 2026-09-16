@@ -3,7 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Server } from './entities/server.entity';
 import { CreateServerDto } from './dto/create-server.dto';
-
+import * as crypto from 'crypto';
 @Injectable()
 export class ServersService {
   constructor(
@@ -12,9 +12,17 @@ export class ServersService {
   ) {}
 
   create(dto: CreateServerDto, userId: string) {
-    const server = this.repo.create({ ...dto, userId });
-    return this.repo.save(server);
-  }
+  // Шифруем ключ в одну строку перед тем, как засунуть в базу
+  const encryptedKey = crypto.createCipheriv('aes-256-cbc', Buffer.from('12345678901234567890123456789012'), Buffer.alloc(16, 0)).update(dto.privateKey, 'utf8', 'hex') + crypto.createCipheriv('aes-256-cbc', Buffer.from('12345678901234567890123456789012'), Buffer.alloc(16, 0)).final('hex');
+
+  const server = this.repo.create({ 
+    ...dto, 
+    userId,
+    privateKey: encryptedKey // Перезаписываем чистый ключ на зашифрованную строку
+  });
+
+  return this.repo.save(server);
+}
 
   // Только сервера ЭТОГО пользователя — не показываем чужие
   findAllByUser(userId: string) {
