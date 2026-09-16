@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { Client } from 'ssh2';
-
+import * as crypto from 'crypto';
 @Injectable()
 export class MetricsService {
   execCommand(conn: Client, command: string): Promise<string> {
@@ -89,12 +89,26 @@ async getLogs(host: string, username: string, privateKey: string): Promise<strin
         reject('проверьте подключение');
       });
 
-      conn.connect({
-        host,
-        port: 22,
-        username,
-        privateKey,
-      });
+      try {
+        // --- САМОЕ ПРОСТОЕ ИСПРАВЛЕННОЕ ДЕШИФРОВАНИЕ ДЛЯ MVP ---
+        const algorithm = 'aes-256-cbc';
+        const key = Buffer.from(process.env.ENCRYPTION_KEY || 'default_key_must_be_32_bytes_long_');
+        const iv = Buffer.alloc(16, 0); // Фиксированный пустой вектор на 16 байт
+
+        const decipher = crypto.createDecipheriv(algorithm, key, iv);
+        let decryptedKey = decipher.update(privateKey, 'hex', 'utf8');
+        decryptedKey += decipher.final('utf8');
+        // -----------------------------------------------------
+
+        conn.connect({
+          host,
+          port: 22,
+          username,
+          privateKey: decryptedKey, // Передаем успешно расшифрованный ключ
+        });
+      } catch (err) {
+        reject('Ошибка расшифровки ключа');
+      }
     });
   }
 }
