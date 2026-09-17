@@ -7,6 +7,7 @@ import { ServersModule } from './servers/servers.module';
 import { MetricsModule } from './metrics/metrics.module';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
+import { TelegramModule } from './telegram/telegram.module';
 
 @Module({
   imports: [
@@ -27,6 +28,7 @@ import { UsersModule } from './users/users.module';
     MetricsModule,
     AuthModule,
     UsersModule,
+    TelegramModule,
   ],
   controllers: [AppController],
   providers: [AppService],

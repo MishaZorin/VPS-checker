@@ -12,7 +12,7 @@ interface Server {
 const API_URL = 'http://localhost:3000';
 
 // Все метрики, которые нужно получить одним кликом
-const METRICS = ['uptime', 'ram', 'disk', 'cpu', 'ports', 'processes', 'docker', 'logs'];
+const METRICS = ['uptime', 'ram', 'disk', 'cpu', 'ports', 'processes', 'docker', 'logs','top'];
 
 interface MetricResult {
   label: string;
@@ -68,7 +68,7 @@ const [token, setToken] = useState<string | null>(() => {
 
     const endpoint = isRegister ? '/auth/register' : '/auth/login';
 
-    // Формируем payload: если регистрация — передаём username, email, password
+    
     const payload = isRegister
       ? { username: usernameAuth, email, password }
       : { email, password };
@@ -82,7 +82,7 @@ const [token, setToken] = useState<string | null>(() => {
 
       const data = await res.json();
       if (!res.ok) {
-        // Если NestJS вернул массив ошибок от class-validator
+     
         const errorMessage = Array.isArray(data.message)
           ? data.message.join(', ')
           : data.message;
@@ -97,7 +97,80 @@ const [token, setToken] = useState<string | null>(() => {
       setAuthLoading(false);
     }
   };
+  async function handleConnectTelegram() {
+  const res = await fetch(`${API_URL}/users/telegram/link`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  const data = await res.json();
+  window.open(data.link, '_blank'); // откроет Telegram с уже готовым кодом
+}
+const getMetricValue = (label: string) => {
+  return results.find((r) => r.label === label)?.value ?? '';
+};
 
+const getDiskPercent = () => {
+  const raw = getMetricValue('disk');
+  const match = raw.match(/(\d+)%/);
+
+  return match ? Number(match[1]) : null;
+};
+
+const getRamPercent = () => {
+  const raw = getMetricValue('ram');
+
+  const lines = raw.split('\n');
+  const memLine = lines.find((line) => line.startsWith('Mem:'));
+
+  if (!memLine) return null;
+
+  const parts = memLine.trim().split(/\s+/);
+
+  const total = parseFloat(parts[1]);
+  const used = parseFloat(parts[2]);
+
+  if (!total || !used) return null;
+
+  return Math.round((used / total) * 100);
+};
+
+const getCpuPercent = () => {
+  const raw = getMetricValue('cpu');
+
+  const match = raw.match(/(\d+(?:\.\d+)?)\s*id/);
+
+  if (!match) return null;
+
+  return Math.round(100 - Number(match[1]));
+};
+
+const getDockerCount = () => {
+  const raw = getMetricValue('docker');
+
+  if (!raw.trim()) return 0;
+
+  return raw.trim().split('\n').length;
+};
+
+const getPortsCount = () => {
+  const raw = getMetricValue('ports');
+
+  if (!raw.trim()) return 0;
+
+  return raw
+    .split('\n')
+    .filter((line) => line.trim() && !line.startsWith('Netid'))
+    .length;
+};
+const activeServer = servers.find((s) => s.id === activeId);
+
+const diskPercent = getDiskPercent();
+const ramPercent = getRamPercent();
+const cpuPercent = getCpuPercent();
+const dockerCount = getDockerCount();
+const portsCount = getPortsCount();
+
+const uptime = getMetricValue('uptime');
 
 async function handleAddServer() {
   if (!host || !username || !secret) return;
@@ -204,6 +277,7 @@ const handleDeleteServer = async (serverId: string) => {
     setResults(allResults);
     setLoading(false);
   };
+  
 
   // --- Пока нет токена — показываем экран входа/регистрации ---
   if (!token) {
@@ -286,6 +360,9 @@ const handleDeleteServer = async (serverId: string) => {
         <button className="btn-secondary" onClick={handleLogout}>
           Выйти
         </button>
+        <button className="btn-secondary" onClick={handleConnectTelegram}>
+  Подключить Telegram
+</button>
       </header>
 
       <section className="card">
@@ -374,31 +451,187 @@ const handleDeleteServer = async (serverId: string) => {
         </div>
       </section>
 
-      {(loading || results.length > 0) && (
-        <section className="card">
-          <div className="metrics-header">
-            <h2>Метрики{loading ? ' (загрузка...)' : ''}</h2>
-            <button
-              className="btn-secondary"
-              onClick={() => activeId && handleShowMetrics(activeId)}
-            >
-              Обновить
-            </button>
+      {(loading || results.length > 0) && activeServer && (
+  <section className="card server-dashboard">
+
+    <div className="server-dashboard-header">
+
+      <div>
+        <h2>{activeServer.host}</h2>
+
+        <div className="server-address">
+          {activeServer.username}@{activeServer.host}
+        </div>
+      </div>
+
+      <div className="server-header-actions">
+
+        <span className="status-text">
+          <span className="status online" />
+          Online
+        </span>
+
+        <button
+          className="btn-secondary"
+          onClick={() => handleShowMetrics(activeServer.id)}
+          disabled={loading}
+        >
+          {loading ? 'Обновление...' : 'Обновить'}
+        </button>
+
+      </div>
+
+    </div>
+
+
+    <div className="main-metrics">
+
+      <div className="metric-box">
+
+        <div className="metric-label">
+          ⚡ CPU
+        </div>
+
+        <div className="metric-value">
+          {cpuPercent !== null ? `${cpuPercent}%` : '—'}
+        </div>
+
+      </div>
+
+
+      <div className="metric-box">
+
+        <div className="metric-label">
+          🧠 RAM
+        </div>
+
+        <div className="metric-value">
+          {ramPercent !== null ? `${ramPercent}%` : '—'}
+        </div>
+
+      </div>
+
+
+      <div className="metric-box">
+
+        <div className="metric-label">
+          💾 DISK
+        </div>
+
+        <div className="metric-value">
+
+          {diskPercent !== null
+            ? `${diskPercent}%`
+            : '—'
+          }
+
+          {diskPercent !== null && diskPercent >= 80 && (
+            <span className="metric-warning"> ⚠️</span>
+          )}
+
+        </div>
+
+      </div>
+
+    </div>
+
+
+    <div className="secondary-metrics">
+
+      <div className="metric-box">
+
+        <div className="metric-label">
+          ⏱ UPTIME
+        </div>
+
+        <pre className="metric-text">
+          {uptime || '—'}
+        </pre>
+
+      </div>
+
+
+      <div className="metric-box">
+
+        <div className="metric-label">
+          🐳 DOCKER
+        </div>
+
+        <div className="metric-value">
+          {dockerCount} running
+        </div>
+
+      </div>
+
+
+      <div className="metric-box">
+
+        <div className="metric-label">
+          🔌 PORTS
+        </div>
+
+        <div className="metric-value">
+          {portsCount} listening
+        </div>
+
+      </div>
+
+    </div>
+
+
+    {diskPercent !== null && diskPercent >= 80 && (
+
+      <div className="warning-box">
+
+        <div className="warning-title">
+          ⚠️ Внимание
+        </div>
+
+        <div>
+          Диск заполнен на {diskPercent}%.
+        </div>
+
+      </div>
+
+    )}
+
+
+    <details className="raw-details">
+
+      <summary>
+        Технические данные
+      </summary>
+
+      <div className="metrics-grid">
+
+        {results.map((r) => (
+
+          <div className="metric-box" key={r.label}>
+
+            <div className="metric-label">
+
+              <span className="metric-icon">
+                {METRIC_ICONS[r.label] ?? '▸'}
+              </span>
+
+              {r.label}
+
+            </div>
+
+            <pre className="raw-output">
+              {r.value}
+            </pre>
+
           </div>
 
-          <div className="metrics-grid">
-            {results.map((r) => (
-              <div className="metric-box" key={r.label}>
-                <div className="metric-label">
-                  <span className="metric-icon">{METRIC_ICONS[r.label] ?? '▸'}</span>
-                  {r.label}
-                </div>
-                <pre className="raw-output">{r.value}</pre>
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
+        ))}
+
+      </div>
+
+    </details>
+
+  </section>
+)}
     </div>
   );
 }

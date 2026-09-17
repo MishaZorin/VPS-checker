@@ -29,6 +29,12 @@ async getUptime(host: string, username: string, privateKey: string): Promise<str
   conn.end();
   return uptimeRaw;
 }
+async getTop(host: string, username: string, privateKey: string): Promise<string> {
+  const conn = await this.connectToServer(host, username, privateKey);
+  const topRaw = await this.execCommand(conn, 'top -bn1');
+  conn.end();
+  return topRaw;
+}
 
 async getRam(host: string, username: string, privateKey: string): Promise<string> {
   const conn = await this.connectToServer(host, username, privateKey);
@@ -77,7 +83,8 @@ async getLogs(host: string, username: string, privateKey: string): Promise<strin
   conn.end();
   return logsRaw;
 }
-  connectToServer(host: string, username: string, privateKey: string): Promise<Client> {
+
+connectToServer(host: string, username: string, privateKey: string): Promise<Client> {
   return new Promise((resolve, reject) => {
     const conn = new Client();
 
@@ -86,29 +93,52 @@ async getLogs(host: string, username: string, privateKey: string): Promise<strin
     });
 
     conn.on('error', (err) => {
+      console.error(`[SSH Connection Error] Ошибка подключения к ${host}:`, err.message);
       reject('проверьте подключение');
     });
 
     try {
-      // ИСПОЛЬЗУЕМ ТОТ ЖЕ ХАРДКОДНЫЙ КЛЮЧ, ЧТО И ПРИ СОХРАНЕНИИ
-      const algorithm = 'aes-256-cbc';
-      const key = Buffer.from('12345678901234567890123456789012'); // Убрали process.env
-      const iv = Buffer.alloc(16, 0); 
+      let finalSshKey = '';
 
-      const decipher = crypto.createDecipheriv(algorithm, key, iv);
-      let decryptedKey = decipher.update(privateKey, 'hex', 'utf8');
-      decryptedKey += decipher.final('utf8');
+      // НАЧАЛО ИСПРАВЛЕНИЯ: Если ключ уже чистый (начинается как SSH-ключ), не расшифровываем его!
+      if (privateKey && privateKey.trim().startsWith('-----BEGIN')) {
+        finalSshKey = privateKey;
+      } else {
+        // Если пришел зашифрованный хэш из БД — расшифровываем
+        const algorithm = 'aes-256-cbc';
+        const rawKey = (process.env.ENCRYPTION_KEY || '12345678901234567890123456789012')
+          .slice(0, 32)
+          .padEnd(32, ' ');
+
+        const key = Buffer.from(rawKey, 'utf8');
+        const iv = Buffer.alloc(16, 0); 
+
+        const decipher = crypto.createDecipheriv(algorithm, key, iv);
+        let decryptedKey = decipher.update(privateKey, 'hex', 'utf8');
+        decryptedKey += decipher.final('utf8');
+        finalSshKey = decryptedKey;
+      }
+
+      // Нормализуем переносы строк в любом случае
+      finalSshKey = finalSshKey
+        .replace(/\\n/g, '\n')
+        .replace(/\r\n/g, '\n')
+        .trim();
 
       conn.connect({
         host,
         port: 22,
         username,
-        privateKey: decryptedKey, 
+        privateKey: finalSshKey, 
       });
-    } catch (err) {
+      
+    } catch (err: any) {
+      console.error(`Критическая ошибка дешифрации для host ${host}:`, err);
       reject('Ошибка расшифровки ключа');
     }
   });
 }
+
+
 
 }

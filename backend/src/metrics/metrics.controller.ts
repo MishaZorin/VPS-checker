@@ -26,6 +26,10 @@ getLogs(@Body() dto: CheckConnectionDto) {
   getRam(@Body() dto: CheckConnectionDto) {
     return this.metricsService.getRam(dto.host, dto.username, dto.privateKey);
   }
+  @Post('top')
+  getTop(@Body() dto: CheckConnectionDto) {
+    return this.metricsService.getTop(dto.host, dto.username, dto.privateKey);
+  }
 
   @Post('disk')
   getDisk(@Body() dto: CheckConnectionDto) {

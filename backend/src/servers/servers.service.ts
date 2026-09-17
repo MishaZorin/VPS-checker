@@ -11,18 +11,37 @@ export class ServersService {
     private readonly repo: Repository<Server>,
   ) {}
 
-  create(dto: CreateServerDto, userId: string) {
-  // Шифруем ключ в одну строку перед тем, как засунуть в базу
-  const encryptedKey = crypto.createCipheriv('aes-256-cbc', Buffer.from('12345678901234567890123456789012'), Buffer.alloc(16, 0)).update(dto.privateKey, 'utf8', 'hex') + crypto.createCipheriv('aes-256-cbc', Buffer.from('12345678901234567890123456789012'), Buffer.alloc(16, 0)).final('hex');
+  async create(dto: CreateServerDto, userId: string) {
+  const algorithm = 'aes-256-cbc';
+  const rawKey = (process.env.ENCRYPTION_KEY || '12345678901234567890123456789012')
+    .slice(0, 32)
+    .padEnd(32, ' ');
+
+  const key = Buffer.from(rawKey, 'utf8');
+  const iv = Buffer.alloc(16, 0); 
+
+  // Шифруем для записи в БД
+  const cipher = crypto.createCipheriv(algorithm, key, iv);
+  let encryptedKey = cipher.update(dto.privateKey, 'utf8', 'hex');
+  encryptedKey += cipher.final('hex');
 
   const server = this.repo.create({ 
     ...dto, 
     userId,
-    privateKey: encryptedKey // Перезаписываем чистый ключ на зашифрованную строку
+    privateKey: encryptedKey // В базу уходит зашифрованный
   });
 
-  return this.repo.save(server);
+  await this.repo.save(server);
+
+  // Возвращаем фронтенду объект ОРИГИНАЛЬНЫМ чистым ключом
+  return {
+    ...server,
+    privateKey: dto.privateKey 
+  };
 }
+
+
+
 
   // Только сервера ЭТОГО пользователя — не показываем чужие
   findAllByUser(userId: string) {

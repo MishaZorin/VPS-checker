@@ -27,5 +27,12 @@ export class User {
   @CreateDateColumn()
   createdAt!: Date;
 
+  @Column({ nullable: true })
+telegramChatId?: string; 
+ 
+@Column({ nullable: true })
+telegramLinkCode?: string;
+ 
+
  
 }
