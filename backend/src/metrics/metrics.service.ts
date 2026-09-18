@@ -77,12 +77,20 @@ async getDockerContainers(host: string, username: string, privateKey: string): P
   conn.end();
   return dockerRaw;
 }
-async getLogs(host: string, username: string, privateKey: string): Promise<string> {
+async getFailed(host: string, username: string, privateKey: string): Promise<string> {
   const conn = await this.connectToServer(host, username, privateKey);
-  const logsRaw = await this.execCommand(conn, 'journalctl -p err -n 20 --no-pager');
+  const failedUnits = await this.execCommand(conn, ' systemctl list-units --state=failed');
   conn.end();
-  return logsRaw;
+  return failedUnits;
 }
+async getFailedConnections(host: string, username: string, privateKey: string): Promise<string> {
+  const conn = await this.connectToServer(host, username, privateKey);
+const failedConnections = await this.execCommand(conn, `grep "Failed password" /var/log/auth.log | awk '{print $(NF-5), $(NF-3)}' | sort | uniq -c | sort -rn | head -10`);
+  conn.end();
+  return failedConnections;
+}
+
+
 
 connectToServer(host: string, username: string, privateKey: string): Promise<Client> {
   return new Promise((resolve, reject) => {

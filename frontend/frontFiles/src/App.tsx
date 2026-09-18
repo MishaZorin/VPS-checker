@@ -12,7 +12,7 @@ interface Server {
 const API_URL = 'http://localhost:3000';
 
 // Все метрики, которые нужно получить одним кликом
-const METRICS = ['uptime', 'ram', 'disk', 'cpu', 'ports', 'processes', 'docker', 'logs','top'];
+const METRICS = ['uptime', 'ram', 'disk', 'cpu', 'ports', 'processes', 'docker', 'logs','top','failedUnits','failedConnections'];
 
 interface MetricResult {
   label: string;
@@ -162,6 +162,56 @@ const getPortsCount = () => {
     .filter((line) => line.trim() && !line.startsWith('Netid'))
     .length;
 };
+const getFailedUnitsCount = () => {
+  const raw = getMetricValue('failed_units');
+
+  if (!raw.trim()) return 0;
+
+  return raw
+    .split('\n')
+    .filter((line) => {
+      const trimmed = line.trim();
+      // Игнорируем пустые строки, заголовки systemd и итоговую строку (например, "0 loaded units listed.")
+      return (
+        trimmed && 
+        !trimmed.startsWith('UNIT') && 
+        !trimmed.includes('loaded units listed')
+      );
+    })
+    .length;
+};
+const getFailedSshCount = () => {
+  const raw = getMetricValue('failed_ssh');
+
+  if (!raw.trim()) return 0;
+
+  return raw
+    .split('\n')
+    .filter((line) => line.trim())
+    .reduce((sum, line) => {
+      const count = parseInt(line.trim().split(/\s+/)[0], 10);
+      return sum + (isNaN(count) ? 0 : count);
+    }, 0);
+};
+const getUptimeData = () => {
+  const raw = getMetricValue('uptime');
+  if (!raw.trim()) return '';
+
+  const cleanStr = raw.replace(/\n/g, ' ').replace(/\s+/g, ' ').trim();
+  const regex = /up\s+(.*?),\s+(\d+)\s+users?,\s+load\s+average:\s+([\d.]+),\s+([\d.]+),\s+([\d.]+)/;
+  const match = cleanStr.match(regex);
+
+  if (!match) return '';
+
+  const uptime = match[1];      // "26 days, 12:43"
+  const la1 = match[3];         // "0.16"
+
+  // Возвращаем готовую строку, которую React сможет отрендерить
+  return `Up: ${uptime} | LA: ${la1}`;
+};
+
+
+
 const activeServer = servers.find((s) => s.id === activeId);
 
 const diskPercent = getDiskPercent();
@@ -169,8 +219,9 @@ const ramPercent = getRamPercent();
 const cpuPercent = getCpuPercent();
 const dockerCount = getDockerCount();
 const portsCount = getPortsCount();
-
-const uptime = getMetricValue('uptime');
+const failedUnits = getFailedUnitsCount()
+const uptime = getUptimeData();
+const failedConn = getFailedSshCount()
 
 async function handleAddServer() {
   if (!host || !username || !secret) return;
@@ -558,7 +609,7 @@ const handleDeleteServer = async (serverId: string) => {
         </div>
 
         <div className="metric-value">
-          {dockerCount} running
+          {dockerCount || '—'} running
         </div>
 
       </div>
@@ -571,10 +622,36 @@ const handleDeleteServer = async (serverId: string) => {
         </div>
 
         <div className="metric-value">
-          {portsCount} listening
+          {portsCount || '—'} listening
         </div>
 
       </div>
+
+      <div className="metric-box">
+
+        <div className="metric-label">
+          🔌 Failed Units
+        </div>
+
+        <div className="metric-value">
+          {failedUnits || '—'} Failed Services
+        </div>
+
+      </div>
+
+      <div className="metric-box">
+
+        <div className="metric-label">
+          🔌 Failed SSH Conn
+        </div>
+
+        <div className="metric-value">
+          {failedConn || '—'} Failed Ssh
+        </div>
+
+      </div>
+
+      
 
     </div>
 
@@ -596,7 +673,7 @@ const handleDeleteServer = async (serverId: string) => {
     )}
 
 
-    <details className="raw-details">
+    {/* <details className="raw-details">
 
       <summary>
         Технические данные
@@ -628,7 +705,7 @@ const handleDeleteServer = async (serverId: string) => {
 
       </div>
 
-    </details>
+    </details> */}
 
   </section>
 )}

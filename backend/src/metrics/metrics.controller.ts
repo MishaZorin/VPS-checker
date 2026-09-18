@@ -17,10 +17,15 @@ export class MetricsController {
   getUptime(@Body() dto: CheckConnectionDto) {
     return this.metricsService.getUptime(dto.host, dto.username, dto.privateKey);
   }
-  @Post('logs')
-getLogs(@Body() dto: CheckConnectionDto) {
-  return this.metricsService.getLogs(dto.host, dto.username, dto.privateKey);
+  @Post('failedUnits')
+getFailed(@Body() dto: CheckConnectionDto) {
+  return this.metricsService.getFailed(dto.host, dto.username, dto.privateKey);
 }
+  @Post('failedConnections')
+getFailedConnections(@Body() dto: CheckConnectionDto) {
+  return this.metricsService.getFailedConnections(dto.host, dto.username, dto.privateKey);
+}
+
 
   @Post('ram')
   getRam(@Body() dto: CheckConnectionDto) {
