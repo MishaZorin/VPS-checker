@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { ConfigModule } from '@nestjs/config'; // 1. Импортируем ConfigModule
+import { ConfigModule } from '@nestjs/config';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { ServersModule } from './servers/servers.module';
@@ -12,15 +12,15 @@ import { TelegramModule } from './telegram/telegram.module';
 @Module({
   imports: [
     ConfigModule.forRoot({
-      isGlobal: true, // 2. Делаем конфигурацию глобальной для всего приложения
+      isGlobal: true,
     }),
     TypeOrmModule.forRoot({
       type: 'postgres',
-      host: '127.0.0.1', 
-      port: 5434,        
-      username: 'postgres',
-      password: 'my_super_secure_password_123', 
-      database: 'vps_checker_hub',
+      host: process.env.DB_HOST,
+      port: parseInt(process.env.DB_PORT ?? '5432', 10),
+      username: process.env.DB_USER,
+      password: process.env.DB_PASSWORD,
+      database: process.env.DB_NAME,
       autoLoadEntities: true,
       synchronize: true,
     }),
