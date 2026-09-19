@@ -47,6 +47,10 @@ export class UsersService {
 async findByTelegramLinkCode(code: string) {
   return this.usersRepository.findOne({ where: { telegramLinkCode: code } });
 }
+
+async findByTelegramChatId(telegramChatId: string) {
+  return this.usersRepository.findOne({ where: { telegramChatId } });
+}
  
 // 3. Сохраняет chatId юзеру и стирает использованный код
 async attachTelegramChatId(userId: string, chatId: string) {

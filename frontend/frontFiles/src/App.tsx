@@ -1,4 +1,4 @@
-import { useState,useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import './App.css';
 
 interface Server {
@@ -8,6 +8,7 @@ interface Server {
   privateKey: string;
   online: boolean;
 }
+
 
 const API_URL = 'http://localhost:3000';
 
@@ -19,16 +20,16 @@ interface MetricResult {
   value: string;
 }
 
-const METRIC_ICONS: Record<string, string> = {
-  uptime: '⏱',
-  ram: '🧠',
-  disk: '💾',
-  cpu: '⚡',
-  ports: '🔌',
-  processes: '📋',
-  docker: '🐳',
-  logs: '📜',
-};
+// const METRIC_ICONS: Record<string, string> = {
+//   uptime: '⏱',
+//   ram: '🧠',
+//   disk: '💾',
+//   cpu: '⚡',
+//   ports: '🔌',
+//   processes: '📋',
+//   docker: '🐳',
+//   logs: '📜',
+// };
 
 export default function App() {
 // чтобы приложение узнало о вашей авторизации мгновенно
@@ -43,22 +44,61 @@ const [token, setToken] = useState<string | null>(() => {
   const [error, setError] = useState('');
   const [authLoading, setAuthLoading] = useState(false);
 
-  // --- Форма добавления сервера ---
   const [authType, setAuthType] = useState<'password' | 'key'>('key');
   const [host, setHost] = useState('');
   const [username, setUsername] = useState('');
   const [secret, setSecret] = useState('');
 
-  // Серверы теперь тоже только в памяти — без localStorage, сбрасываются при обновлении страницы
   const [servers, setServers] = useState<Server[]>([]);
 
   const [activeId, setActiveId] = useState<string | null>(null);
   const [results, setResults] = useState<MetricResult[]>([]);
   const [loading, setLoading] = useState(false);
 
+  useEffect(() => {
+    if (!token) {
+      setServers([]);
+      return;
+    }
+
+    let cancelled = false;
+
+    const loadServers = async () => {
+      try {
+        const res = await fetch(`${API_URL}/servers`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        if (res.status === 401) {
+          localStorage.removeItem('token');
+          if (!cancelled) setToken(null);
+          return;
+        }
+
+        if (!res.ok) {
+          throw new Error(`Не удалось загрузить серверы: ${res.status}`);
+        }
+
+        const data: Server[] = await res.json();
+        if (!cancelled) setServers(data);
+      } catch (err) {
+        if (!cancelled) console.error('Ошибка загрузки серверов:', err);
+      }
+    };
+
+    void loadServers();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [token]);
+
   const handleLogout = () => {
-    localStorage.removeItem('token'); 
+    localStorage.removeItem('token');
     setToken(null);
+    setServers([]);
+    setActiveId(null);
+    setResults([]);
   };
 
   const handleAuth = async (e: React.FormEvent) => {
@@ -163,35 +203,28 @@ const getPortsCount = () => {
     .length;
 };
 const getFailedUnitsCount = () => {
-  const raw = getMetricValue('failed_units');
-
-  if (!raw.trim()) return 0;
+  const raw = getMetricValue('failedUnits').trim();
+  if (!raw || /^0\s+loaded\s+units?\s+listed\.?$/i.test(raw)) return 0;
 
   return raw
     .split('\n')
-    .filter((line) => {
-      const trimmed = line.trim();
-      // Игнорируем пустые строки, заголовки systemd и итоговую строку (например, "0 loaded units listed.")
-      return (
-        trimmed && 
-        !trimmed.startsWith('UNIT') && 
-        !trimmed.includes('loaded units listed')
-      );
-    })
-    .length;
+    .map((line) => line.trim())
+    .filter(
+      (line) =>
+        line &&
+        !/^\d+\s+loaded\s+units?\s+listed\.?$/i.test(line) &&
+        !/^unit\s+load\s+active\s+sub\s+description$/i.test(line),
+    ).length;
 };
-const getFailedSshCount = () => {
-  const raw = getMetricValue('failed_ssh');
 
+const getFailedSshCount = () => {
+  const raw = getMetricValue('failedConnections');
   if (!raw.trim()) return 0;
 
-  return raw
-    .split('\n')
-    .filter((line) => line.trim())
-    .reduce((sum, line) => {
-      const count = parseInt(line.trim().split(/\s+/)[0], 10);
-      return sum + (isNaN(count) ? 0 : count);
-    }, 0);
+  return raw.split('\n').reduce((sum, line) => {
+    const count = Number.parseInt(line.trim().split(/\s+/)[0], 10);
+    return sum + (Number.isNaN(count) ? 0 : count);
+  }, 0);
 };
 const getUptimeData = () => {
   const raw = getMetricValue('uptime');
@@ -318,7 +351,7 @@ const handleDeleteServer = async (serverId: string) => {
         });
 
         const text = res.ok ? await res.text() : `Ошибка: ${res.status}`;
-        return { label: metricName, value: text };
+        return { label: metricName, value: text.trim() };
       } catch (err) {
         return { label: metricName, value: `Ошибка: ${err}` };
       }
@@ -328,9 +361,8 @@ const handleDeleteServer = async (serverId: string) => {
     setResults(allResults);
     setLoading(false);
   };
-  
 
-  // --- Пока нет токена — показываем экран входа/регистрации ---
+
   if (!token) {
     return (
       <div className="page auth-page">
@@ -634,7 +666,9 @@ const handleDeleteServer = async (serverId: string) => {
         </div>
 
         <div className="metric-value">
-          {failedUnits || '—'} Failed Services
+          {getMetricValue('failedUnits').startsWith('Ошибка:')
+            ? '—'
+            : `${failedUnits} Failed Services`}
         </div>
 
       </div>
@@ -646,7 +680,9 @@ const handleDeleteServer = async (serverId: string) => {
         </div>
 
         <div className="metric-value">
-          {failedConn || '—'} Failed Ssh
+          {getMetricValue('failedConnections').startsWith('Ошибка:')
+            ? '—'
+            : `${failedConn} Failed Ssh`}
         </div>
 
       </div>

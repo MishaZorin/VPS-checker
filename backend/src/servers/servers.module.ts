@@ -8,6 +8,6 @@ import { Server } from './entities/server.entity'; // Исправлен пут�
   imports: [TypeOrmModule.forFeature([Server])],
   controllers: [ServersController],
   providers: [ServersService],
-  exports: [TypeOrmModule],
+  exports: [ServersService],
 })
 export class ServersModule {}

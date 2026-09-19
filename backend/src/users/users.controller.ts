@@ -17,8 +17,7 @@ export class UsersController {
     const code = await this.userService.generateTelegramLinkCode(req.user.userId);
  
     return {
-
-      link: `https://t.me/servers_status_check_bot`,
+      link: `https://t.me/servers_status_check_bot?start=${encodeURIComponent(code)}`,
     };
   }
 }

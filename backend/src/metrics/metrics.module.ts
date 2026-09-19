@@ -5,5 +5,6 @@ import { MetricsController } from './metrics.controller';
 @Module({
   controllers: [MetricsController],
   providers: [MetricsService],
+  exports: [MetricsService],
 })
 export class MetricsModule {}
