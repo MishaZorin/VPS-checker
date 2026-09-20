@@ -1,0 +1,15 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.TELEGRAF_ALL_BOTS = exports.TELEGRAF_STAGE = exports.PARAM_ARGS_METADATA = exports.WIZARD_STEP_METADATA = exports.LISTENERS_METADATA = exports.SCENE_METADATA = exports.UPDATE_METADATA = exports.COMPOSER_METADATA = exports.DEFAULT_BOT_NAME = exports.TELEGRAF_BOT_NAME = exports.TELEGRAF_MODULE_OPTIONS = void 0;
+const constants_1 = require("@nestjs/common/constants");
+exports.TELEGRAF_MODULE_OPTIONS = 'TELEGRAF_MODULE_OPTIONS';
+exports.TELEGRAF_BOT_NAME = 'TELEGRAF_BOT_NAME';
+exports.DEFAULT_BOT_NAME = 'DEFAULT_BOT_NAME';
+exports.COMPOSER_METADATA = 'COMPOSER_METADATA';
+exports.UPDATE_METADATA = 'UPDATE_METADATA';
+exports.SCENE_METADATA = 'SCENE_METADATA';
+exports.LISTENERS_METADATA = 'LISTENERS_METADATA';
+exports.WIZARD_STEP_METADATA = 'WIZARD_STEP_METADATA';
+exports.PARAM_ARGS_METADATA = constants_1.ROUTE_ARGS_METADATA;
+exports.TELEGRAF_STAGE = 'TelegrafStage';
+exports.TELEGRAF_ALL_BOTS = 'TELEGRAF_ALL_BOTS';

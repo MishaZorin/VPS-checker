@@ -1,76 +1,111 @@
-import { Update, Ctx, Start, Command } from '@grammyjs/nestjs';
+import { Update, Ctx, Start, Command, Hears, On, Next } from '@grammyjs/nestjs';
 import { Context } from 'grammy';
-import { UsersService } from '../users/users.service';
 import { ServersService } from '../servers/servers.service';
 import { MetricsService } from '../metrics/metrics.service';
+import { AuthService } from '../auth/auth.service';
+
+type SessionContext = Context & {
+  session: {
+    awaitingLogin?: 'email' | 'password';
+    email?: string;
+    userId?: string;
+    accessToken?: string;
+  };
+};
 
 @Update()
 export class TelegramUpdate {
   constructor(
-    private readonly usersService: UsersService,
     private readonly serversService: ServersService,
     private readonly metricsService: MetricsService,
+    private readonly authService: AuthService,
   ) {}
 
   @Start()
   async onStart(@Ctx() ctx: Context) {
-    const code = ctx.match as string; // это то, что стоит после ?start=
-
-    // Если код не пришёл — юзер просто написал /start без ссылки
-    if (!code) {
-      await ctx.reply('Привет! Чтобы привязать аккаунт — зайди на дашборд и нажми "Подключить Telegram".');
-      return;
-    }
-
-    const user = await this.usersService.findByTelegramLinkCode(code);
-
-    if (!user) {
-      await ctx.reply('Код недействителен. Сгенерируй новую ссылку на дашборде.');
-      return;
-    }
-
-    const chatId = ctx.chat!.id.toString();
-    await this.usersService.attachTelegramChatId(user.id, chatId);
-
-    await ctx.reply('✅ Готово! Твой Telegram привязан к аккаунту.');
+    await ctx.reply('Привет! Напиши /login, чтобы войти.');
   }
+
+  // ==== ЛОГИН ====
+
+  @Hears('/login')
+  async logIn(@Ctx() ctx: SessionContext) {
+    ctx.session.awaitingLogin = 'email';
+    await ctx.reply('Введи email:');
+  }
+
+  @On('message:text')
+async onText(@Ctx() ctx: SessionContext, @Next() next: () => Promise<void>) {
+  if (ctx.session.awaitingLogin === undefined) {
+    return next(); // не наш случай — пропускаем дальше
+  }
+  if (!ctx.message?.text) {
+    return next();
+  }
+
+  const text = ctx.message.text.trim();
+
+  if (ctx.session.awaitingLogin === 'email') {
+    ctx.session.email = text;
+    ctx.session.awaitingLogin = 'password';
+    await ctx.reply('Теперь пароль:');
+    return;
+  }
+
+  if (ctx.session.awaitingLogin === 'password') {
+    const email = ctx.session.email;
+    ctx.session.awaitingLogin = undefined;
+    ctx.session.email = undefined;
+
+    if (!email) return;
+
+    try {
+      const user = await this.authService.validateUser(email, text);
+      const { access_token } = await this.authService.login(user);
+
+      ctx.session.userId = String(user.id);
+      ctx.session.accessToken = access_token;
+
+      await ctx.reply('✅ Вход выполнен.');
+    } catch {
+      await ctx.reply('❌ Неверный email или пароль.');
+    }
+  }
+}
+
+  // ==== КОМАНДЫ (юзер берётся из сессии) ====
 
   @Command('servers')
-  async onServers(@Ctx() ctx: Context) {
-    const chatId = ctx.chat?.id.toString();
-    if (!chatId) return;
-
-    const user = await this.usersService.findByTelegramChatId(chatId);
-    if (!user) {
-      await ctx.reply('Сначала привяжи Telegram через дашборд.');
-      return;
-    }
-
-    const servers = await this.serversService.findAllByUser(user.id);
-    if (!servers.length) {
-      await ctx.reply('У тебя пока нет сохранённых серверов.');
-      return;
-    }
-
-    const message = servers
-      .map((server, index) => `${index + 1}. ${server.host} — ${server.username}`)
-      .join('\n');
-
-    await ctx.reply(`Твои серверы:\n${message}`);
+async onServers(@Ctx() ctx: SessionContext) {
+  const userId = ctx.session.userId;
+  if (!userId) {
+    await ctx.reply('Сначала войди через /login.');
+    return;
   }
 
-  @Command('metrics')
-  async onMetrics(@Ctx() ctx: Context) {
-    const chatId = ctx.chat?.id.toString();
-    if (!chatId) return;
+  const servers = await this.serversService.findAllByUser(userId);
+  if (!servers.length) {
+    await ctx.reply('У тебя пока нет сохранённых серверов.');
+    return;
+  }
 
-    const user = await this.usersService.findByTelegramChatId(chatId);
-    if (!user) {
-      await ctx.reply('Сначала привяжи Telegram через дашборд.');
+  const message = servers
+    .map((server, index) => `${index + 1}. ${server.host} — ${server.username}`)
+    .join('\n');
+
+  await ctx.reply(`Твои серверы:\n${message}`);
+}
+
+  @Command('metrics')
+  async onMetrics(@Ctx() ctx: SessionContext) {
+    console.log('METRICS HANDLER HIT')
+    
+    if (!ctx.session.userId) {
+      await ctx.reply('Сначала войди через /login.');
       return;
     }
-
-    const servers = await this.serversService.findAllByUser(user.id);
+const userId = ctx.session.userId;
+    const servers = await this.serversService.findAllByUser(userId);
     if (!servers.length) {
       await ctx.reply('У тебя пока нет сохранённых серверов.');
       return;

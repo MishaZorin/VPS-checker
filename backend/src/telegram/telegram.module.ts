@@ -1,7 +1,10 @@
+// telegram.module.ts
 import { NestjsGrammyModule } from '@grammyjs/nestjs';
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
+import { session } from 'grammy'; // <-- добавить импорт
 
+import { AuthModule } from '../auth/auth.module';
 import { TelegramUpdate } from './telegram.update';
 import { UsersModule } from '../users/users.module';
 import { ServersModule } from '../servers/servers.module';
@@ -21,14 +24,19 @@ import { MetricsModule } from '../metrics/metrics.module';
         }
 
         return {
-          botName: 'default',
-          token,
-        };
+  botName: 'default',
+  token,
+  middlewares: [session({ initial: () => ({}) })],
+  onError: (error) => {
+    console.error('BOT ERROR:', error);
+  },
+};
       },
     }),
     UsersModule,
     ServersModule,
     MetricsModule,
+    AuthModule,
   ],
   providers: [TelegramUpdate],
 })
