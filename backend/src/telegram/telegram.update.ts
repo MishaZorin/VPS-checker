@@ -118,15 +118,15 @@ const userId = ctx.session.userId;
       try {
         const [uptime, ram, disk, cpu, ports, processes, docker, failedServices, failedConnections] =
           await Promise.all([
-            this.metricsService.getUptime(server.host, server.username, server.privateKey),
-            this.metricsService.getRam(server.host, server.username, server.privateKey),
-            this.metricsService.getDisk(server.host, server.username, server.privateKey),
-            this.metricsService.getCpu(server.host, server.username, server.privateKey),
-            this.metricsService.getPorts(server.host, server.username, server.privateKey),
-            this.metricsService.getTopProcesses(server.host, server.username, server.privateKey),
-            this.metricsService.getDockerContainers(server.host, server.username, server.privateKey),
-            this.metricsService.getFailed(server.host, server.username, server.privateKey),
-            this.metricsService.getFailedConnections(server.host, server.username, server.privateKey),
+            this.metricsService.getUptime(server.host, server.username, server.password),
+            this.metricsService.getRam(server.host, server.username, server.password),
+            this.metricsService.getDisk(server.host, server.username, server.password),
+            this.metricsService.getCpu(server.host, server.username, server.password),
+            this.metricsService.getPorts(server.host, server.username, server.password),
+            this.metricsService.getTopProcesses(server.host, server.username, server.password),
+            this.metricsService.getDockerContainers(server.host, server.username, server.password),
+            this.metricsService.getFailed(server.host, server.username, server.password),
+            this.metricsService.getFailedConnections(server.host, server.username, server.password),
           ]);
 
         messages.push(this.formatServerMetrics(server.host, {

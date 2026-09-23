@@ -3,44 +3,28 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Server } from './entities/server.entity';
 import { CreateServerDto } from './dto/create-server.dto';
-import * as crypto from 'crypto';
+
 @Injectable()
 export class ServersService {
   constructor(
     @InjectRepository(Server)
     private readonly repo: Repository<Server>,
-  ) { }
+  ) {}
 
   async create(dto: CreateServerDto, userId: string) {
-    const algorithm = 'aes-256-cbc';
-    const rawKey = (process.env.ENCRYPTION_KEY || '12345678901234567890123456789012')
-      .slice(0, 32)
-      .padEnd(32, ' ');
-
-    const key = Buffer.from(rawKey, 'utf8');
-    const iv = Buffer.alloc(16, 0);
-
-    const cipher = crypto.createCipheriv(algorithm, key, iv);
-    let encryptedKey = cipher.update(dto.privateKey, 'utf8', 'hex');
-    encryptedKey += cipher.final('hex');
-
     const server = this.repo.create({
-      ...dto,
+      host: dto.host,
+      port: dto.port ?? 22,
+      username: dto.username,
+      authType: dto.authType,
+      password: dto.password,
       userId,
-      privateKey: encryptedKey 
     });
 
-    await this.repo.save(server);
+    const savedServer = await this.repo.save(server);
 
-  
-    return {
-      ...server,
-      privateKey: dto.privateKey
-    };
+    return savedServer;
   }
-
-
-
 
   findAllByUser(userId: string) {
     return this.repo.find({ where: { userId } });
@@ -52,8 +36,11 @@ export class ServersService {
 
   async remove(id: string, userId: string) {
     const server = await this.findOne(id, userId);
+
     if (!server) return null;
+
     await this.repo.remove(server);
+
     return server;
   }
 }

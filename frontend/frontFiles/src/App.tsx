@@ -5,7 +5,7 @@ interface Server {
   id: string;
   host: string;
   username: string;
-  privateKey: string;
+  password: string;
   online: boolean;
 }
 
@@ -54,6 +54,23 @@ const [token, setToken] = useState<string | null>(() => {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [results, setResults] = useState<MetricResult[]>([]);
   const [loading, setLoading] = useState(false);
+//   useEffect(() => {
+//   if (!activeId) return;
+
+//   let timeout: ReturnType<typeof setTimeout>;
+
+//   const update = async () => {
+//     await handleShowMetrics(activeId);
+
+//     timeout = setTimeout(update, 5000);
+//   };
+
+//   update();
+
+//   return () => {
+//     clearTimeout(timeout);
+//   };
+// }, [activeId]);
 
   useEffect(() => {
     if (!token) {
@@ -270,7 +287,7 @@ async function handleAddServer() {
         host,
         username,
         authType,
-        privateKey: secret,
+        password: secret,
       }),
     });
 
@@ -332,8 +349,7 @@ const handleDeleteServer = async (serverId: string) => {
       return;
     }
 
-    const formattedKey = server.privateKey.replace(/\\n/g, '\n').trim();
-
+  
     // Один запрос на каждую метрику, все параллельно через Promise.all
     const requests = METRICS.map(async (metricName) => {
       try {
@@ -346,7 +362,7 @@ const handleDeleteServer = async (serverId: string) => {
           body: JSON.stringify({
             host: server.host,
             username: server.username,
-            privateKey: formattedKey,
+            password: server.password
           }),
         });
 
@@ -487,23 +503,15 @@ const handleDeleteServer = async (serverId: string) => {
         </div>
 
         <div className="form-row">
-          <label>{authType === 'password' ? 'Password' : 'Private Key'}</label>
-          {authType === 'password' ? (
-            <input
-              type="password"
-              placeholder="••••••••"
-              value={secret}
-              onChange={(e) => setSecret(e.target.value)}
-            />
-          ) : (
-            <textarea
-              placeholder="-----BEGIN OPENSSH PRIVATE KEY-----"
-              value={secret}
-              onChange={(e) => setSecret(e.target.value)}
-              rows={4}
-            />
-          )}
-        </div>
+  <label>Password</label>
+  <input
+    type="password"
+    placeholder="••••••••"
+    value={secret}
+    onChange={(e) => setSecret(e.target.value)}
+  />
+</div>
+
 
         <button className="btn-primary" onClick={handleAddServer}>
           Добавить сервер

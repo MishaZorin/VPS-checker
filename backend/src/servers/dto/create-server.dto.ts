@@ -11,9 +11,9 @@ export class CreateServerDto {
   @IsString()
   username!: string;
 
+  @IsString()
+  password!: string;
+
   @IsIn(['password', 'key'])
   authType!: 'password' | 'key';
-
-  @IsString()
-  privateKey!: string; // пароль ИЛИ ключ — фронт сам решает, что туда кладёт
 }

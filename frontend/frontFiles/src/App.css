@@ -558,3 +558,278 @@ body {
 .raw-details .metrics-grid {
   margin-top: 15px;
 }
+
+@media (max-width: 700px) {
+
+  /* Основная страница */
+  .page {
+    width: 100%;
+    max-width: 100%;
+    padding: 20px 14px 50px;
+  }
+
+  /* Заголовок */
+  .header {
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .header h1 {
+    font-size: 20px;
+    margin-bottom: 20px;
+  }
+
+  /* Обычные карточки */
+  .card {
+    padding: 16px;
+    border-radius: 10px;
+    margin-bottom: 14px;
+  }
+
+  /* Формы */
+  .form-row {
+    margin-bottom: 12px;
+  }
+
+  .form-row input,
+  .form-row textarea {
+    width: 100%;
+    min-width: 0;
+    font-size: 14px;
+  }
+
+  /* Переключатель Password / SSH Key */
+  .toggle-group {
+    width: 100%;
+  }
+
+  .toggle {
+    min-width: 0;
+    padding: 9px 8px;
+  }
+
+  /* Кнопки */
+  .btn-primary,
+  .btn-secondary {
+    min-height: 38px;
+  }
+
+  /* ============================================
+     Список серверов
+     ============================================ */
+
+  .server-row {
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 12px;
+  }
+
+  .server-host {
+    min-width: 0;
+    max-width: calc(100% - 25px);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .server-username {
+    flex: 1 1 100%;
+    padding-left: 16px;
+  }
+
+  .server-row .btn-secondary {
+    width: 100%;
+  }
+
+  /* ============================================
+     Dashboard header
+     ============================================ */
+
+  .server-dashboard-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 14px;
+    margin-bottom: 18px;
+  }
+
+  .server-dashboard-header h2 {
+    font-size: 19px;
+    line-height: 1.3;
+  }
+
+  .server-address {
+    font-size: 13px;
+    word-break: break-all;
+  }
+
+  .server-header-actions {
+    width: 100%;
+    justify-content: space-between;
+    gap: 10px;
+  }
+
+  .server-header-actions .btn-secondary {
+    flex: 1;
+  }
+
+  /* ============================================
+     Основные метрики
+     ============================================ */
+
+  .main-metrics {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .secondary-metrics {
+    grid-template-columns: 1fr;
+    gap: 10px;
+    margin-top: 10px;
+  }
+
+  /* ============================================
+     Карточки метрик
+     ============================================ */
+
+  .metric-box {
+    width: 100%;
+    min-width: 0;
+    padding: 16px;
+    border-radius: 10px;
+  }
+
+  .metric-label {
+    font-size: 11px;
+  }
+
+  .metric-value {
+    font-size: 24px;
+    word-break: break-word;
+  }
+
+  .metric-text {
+    font-size: 13px;
+    overflow-wrap: anywhere;
+  }
+
+  /* ============================================
+     Кнопки выбора метрик
+     ============================================ */
+
+  .metric-buttons {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 7px;
+  }
+
+  .metric-buttons .btn-secondary {
+    width: 100%;
+    min-width: 0;
+    padding: 9px 6px;
+    font-size: 11px;
+  }
+
+  /* ============================================
+     Сетка сырых метрик
+     ============================================ */
+
+  .metrics-grid {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .raw-output {
+    max-width: 100%;
+    overflow-x: auto;
+    font-size: 11px;
+  }
+
+  /* ============================================
+     Предупреждение
+     ============================================ */
+
+  .warning-box {
+    padding: 14px;
+    margin-top: 10px;
+  }
+
+  .warning-title {
+    font-size: 14px;
+  }
+
+  .metric-warning {
+    font-size: 18px;
+  }
+
+  /* ============================================
+     Raw details
+     ============================================ */
+
+  .raw-details {
+    margin-top: 18px;
+  }
+
+  .raw-details summary {
+    font-size: 13px;
+  }
+
+  /* ============================================
+     Авторизация
+     ============================================ */
+
+  .auth-page {
+    padding: 14px;
+  }
+
+  .auth-card {
+    max-width: 100%;
+    padding: 24px 18px;
+  }
+
+  .auth-title {
+    font-size: 21px;
+  }
+}
+
+
+/* ============================================
+   VERY SMALL PHONES
+   ============================================ */
+
+@media (max-width: 400px) {
+
+  .page {
+    padding-left: 10px;
+    padding-right: 10px;
+  }
+
+  .card {
+    padding: 13px;
+  }
+
+  .server-dashboard-header h2 {
+    font-size: 17px;
+  }
+
+  .server-header-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .server-header-actions .btn-secondary {
+    width: 100%;
+  }
+
+  .metric-buttons {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .metric-buttons .btn-secondary {
+    font-size: 10px;
+    padding: 8px 4px;
+  }
+
+  .metric-value {
+    font-size: 22px;
+  }
+}
+
