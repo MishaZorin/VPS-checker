@@ -1,21 +1,26 @@
+import { setGlobalDispatcher, ProxyAgent } from 'undici';
+setGlobalDispatcher(new ProxyAgent('http://172.19.0.1:8118'));
+
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import { startTelegramBot } from './telegram/telegram-bot.setup';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
-app.enableCors()
+  app.enableCors();
   const config = new DocumentBuilder()
     .setTitle('API')
     .setDescription('API description')
     .setVersion('1.0')
-    .addBearerAuth() // если используешь JWT-авторизацию
+    .addBearerAuth()
     .build();
-    // http://localhost:3000/api
 
   const document = SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('api', app, document); // доступно по /api
+  SwaggerModule.setup('api', app, document);
 
   await app.listen(process.env.PORT ?? 3000);
+
+  startTelegramBot(app);
 }
 bootstrap();

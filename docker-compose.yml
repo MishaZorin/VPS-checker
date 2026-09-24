@@ -3,14 +3,40 @@ services:
     image: postgres:16-alpine
     container_name: vps_checker_db
     restart: unless-stopped
+    env_file: .env
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: my_super_secure_password_123
-      POSTGRES_DB: vps_checker_hub
-    ports:
-      - "5434:5432"
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
     volumes:
       - pgdata:/var/lib/postgresql/data
+    networks:
+      - secure_network
+
+  backend:
+    build: ./backend
+    container_name: vps-checker-backend
+    restart: unless-stopped
+    env_file: .env
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      - postgres
+    ports:
+      - "4001:3000"
+    volumes:
+      - ./ssh-keys:/app/ssh:ro
+    networks:
+      - secure_network
+
+  frontend:
+    build: ./frontend/frontFiles
+    container_name: vps-checker-frontend
+    restart: unless-stopped
+    ports:
+      - "4002:80"
+    depends_on:
+      - backend
     networks:
       - secure_network
 

@@ -20,7 +20,6 @@
     "test:e2e": "jest --config ./test/jest-e2e.json"
   },
   "dependencies": {
-    "@grammyjs/nestjs": "^0.3.4",
     "@nestjs/common": "^11.0.1",
     "@nestjs/config": "^12.0.0",
     "@nestjs/core": "^11.0.1",
@@ -42,7 +41,8 @@
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",
     "ssh2": "^1.17.0",
-    "typeorm": "^1.1.1"
+    "typeorm": "^1.1.1",
+    "undici": "^8.11.0"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.2.0",
