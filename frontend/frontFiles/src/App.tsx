@@ -10,7 +10,7 @@ interface Server {
 }
 
 
-const API_URL = 'http://localhost:3000';
+const API_URL = '/api';
 
 // Все метрики, которые нужно получить одним кликом
 const METRICS = ['uptime', 'ram', 'disk', 'cpu', 'ports', 'processes', 'docker', 'logs','top','failedUnits','failedConnections'];
