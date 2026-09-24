@@ -1,6 +1,6 @@
 import { INestApplication } from '@nestjs/common';
 import { Bot, session, Context } from 'grammy';
-import { ProxyAgent } from 'undici';
+import { HttpsProxyAgent } from 'https-proxy-agent';
 import { ServersService } from '../servers/servers.service';
 import { MetricsService } from '../metrics/metrics.service';
 import { AuthService } from '../auth/auth.service';
@@ -126,12 +126,12 @@ export function startTelegramBot(app: INestApplication) {
   const authService = app.get(AuthService);
 
   const bot = new Bot<SessionContext>(token, {
-    client: {
-      baseFetchConfig: {
-        dispatcher: new ProxyAgent('http://172.19.0.1:8118'),
-      },
+  client: {
+    baseFetchConfig: {
+      agent: new HttpsProxyAgent('http://172.19.0.1:8118'),
     },
-  });
+  },
+});
 
   bot.use(session({ initial: () => ({}) }));
 

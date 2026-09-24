@@ -1,5 +1,4 @@
-import { setGlobalDispatcher, ProxyAgent } from 'undici';
-setGlobalDispatcher(new ProxyAgent('http://172.19.0.1:8118'));
+
 
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
