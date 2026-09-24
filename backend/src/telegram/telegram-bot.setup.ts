@@ -126,51 +126,39 @@ export function startTelegramBot(app: INestApplication) {
   const authService = app.get(AuthService);
 
   const bot = new Bot<SessionContext>(token, {
-  client: {
-    baseFetchConfig: {
-      agent: new HttpsProxyAgent('http://172.19.0.1:8118'),
+    client: {
+      baseFetchConfig: {
+        agent: new HttpsProxyAgent('http://172.19.0.1:8118'),
+      },
     },
-  },
-});
+  });
 
   bot.use(session({ initial: () => ({}) }));
+
+  // --- Команды регистрируем ДО общего обработчика message:text ---
 
   bot.command('start', async (ctx) => {
     await ctx.reply('Привет! Напиши /login, чтобы войти.');
   });
 
-  bot.hears('/login', async (ctx) => {
+  bot.command('login', async (ctx) => {
     ctx.session.awaitingLogin = 'email';
+    ctx.session.email = undefined;
     await ctx.reply('Введи email:');
   });
 
-  bot.on('message:text', async (ctx) => {
-    if (ctx.session.awaitingLogin === undefined) return;
-    const text = ctx.message.text.trim();
+  bot.command('cancel', async (ctx) => {
+    ctx.session.awaitingLogin = undefined;
+    ctx.session.email = undefined;
+    await ctx.reply('Отменено.');
+  });
 
-    if (ctx.session.awaitingLogin === 'email') {
-      ctx.session.email = text;
-      ctx.session.awaitingLogin = 'password';
-      await ctx.reply('Теперь пароль:');
-      return;
-    }
-
-    if (ctx.session.awaitingLogin === 'password') {
-      const email = ctx.session.email;
-      ctx.session.awaitingLogin = undefined;
-      ctx.session.email = undefined;
-      if (!email) return;
-
-      try {
-        const user = await authService.validateUser(email, text);
-        const { access_token } = await authService.login(user);
-        ctx.session.userId = String(user.id);
-        ctx.session.accessToken = access_token;
-        await ctx.reply('✅ Вход выполнен.');
-      } catch {
-        await ctx.reply('❌ Неверный email или пароль.');
-      }
-    }
+  bot.command('logout', async (ctx) => {
+    ctx.session.userId = undefined;
+    ctx.session.accessToken = undefined;
+    ctx.session.awaitingLogin = undefined;
+    ctx.session.email = undefined;
+    await ctx.reply('👋 Вы вышли из аккаунта.');
   });
 
   bot.command('servers', async (ctx) => {
@@ -179,15 +167,19 @@ export function startTelegramBot(app: INestApplication) {
       await ctx.reply('Сначала войди через /login.');
       return;
     }
-    const servers = await serversService.findAllByUser(userId);
-    if (!servers.length) {
-      await ctx.reply('У тебя пока нет сохранённых серверов.');
-      return;
+    try {
+      const servers = await serversService.findAllByUser(userId);
+      if (!servers.length) {
+        await ctx.reply('У тебя пока нет сохранённых серверов.');
+        return;
+      }
+      const message = servers
+        .map((s, i) => `${i + 1}. ${s.host} — ${s.username}`)
+        .join('\n');
+      await ctx.reply(`Твои серверы:\n${message}`);
+    } catch (error) {
+      await ctx.reply(`⚠️ Ошибка: ${getErrorMessage(error)}`);
     }
-    const message = servers
-      .map((s, i) => `${i + 1}. ${s.host} — ${s.username}`)
-      .join('\n');
-    await ctx.reply(`Твои серверы:\n${message}`);
   });
 
   bot.command('metrics', async (ctx) => {
@@ -196,7 +188,15 @@ export function startTelegramBot(app: INestApplication) {
       return;
     }
     const userId = ctx.session.userId;
-    const servers = await serversService.findAllByUser(userId);
+
+    let servers;
+    try {
+      servers = await serversService.findAllByUser(userId);
+    } catch (error) {
+      await ctx.reply(`⚠️ Ошибка: ${getErrorMessage(error)}`);
+      return;
+    }
+
     if (!servers.length) {
       await ctx.reply('У тебя пока нет сохранённых серверов.');
       return;
@@ -224,13 +224,63 @@ export function startTelegramBot(app: INestApplication) {
           uptime, ram, disk, cpu, ports, processes, docker, failedServices, failedConnections,
         }));
       } catch (error) {
-        messages.push(`🖥 <b>${escapeHtml(server.host)}</b>\n⚠️ Ошибка подключения: ${escapeHtml(getErrorMessage(error))}`);
+        messages.push(
+          `🖥 <b>${escapeHtml(server.host)}</b>\n⚠️ Ошибка подключения: ${escapeHtml(getErrorMessage(error))}`,
+        );
       }
     }
 
     for (const chunk of splitTelegramMessage(messages.join('\n\n'))) {
       await ctx.reply(chunk, { parse_mode: 'HTML' });
     }
+  });
+
+  // --- Обработчик свободного текста: только для процесса логина ---
+
+  bot.on('message:text', async (ctx, next) => {
+    const text = ctx.message.text.trim();
+
+    // Команды не трогаем — пусть их обрабатывают bot.command(...)
+    if (text.startsWith('/')) {
+      return next();
+    }
+
+    // Нет активного логина — не наше дело, пропускаем дальше
+    if (ctx.session.awaitingLogin === undefined) {
+      return next();
+    }
+
+    if (ctx.session.awaitingLogin === 'email') {
+      ctx.session.email = text;
+      ctx.session.awaitingLogin = 'password';
+      await ctx.reply('Теперь пароль:');
+      return;
+    }
+
+    if (ctx.session.awaitingLogin === 'password') {
+      const email = ctx.session.email;
+      ctx.session.awaitingLogin = undefined;
+      ctx.session.email = undefined;
+
+      if (!email) {
+        await ctx.reply('Сессия сброшена, начни заново через /login.');
+        return;
+      }
+
+      try {
+        const user = await authService.validateUser(email, text);
+        const { access_token } = await authService.login(user);
+        ctx.session.userId = String(user.id);
+        ctx.session.accessToken = access_token;
+        await ctx.reply('✅ Вход выполнен.');
+      } catch {
+        await ctx.reply('❌ Неверный email или пароль.');
+      }
+      return;
+    }
+
+    // На всякий случай — если состояние неизвестное
+    return next();
   });
 
   bot.catch((err) => {
