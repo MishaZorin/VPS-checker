@@ -8,6 +8,10 @@ on:
     branches:
       - master
 
+permissions:
+  contents: read
+  packages: write
+
 jobs:
   backend:
     runs-on: ubuntu-latest
@@ -30,3 +34,33 @@ jobs:
       - name: Build backend
         working-directory: backend
         run: npm run build
+
+
+  docker:
+    needs: backend
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push backend
+        uses: docker/build-push-action@v6
+        with:
+          context: ./backend
+          push: true
+          tags: ghcr.io/mishazorin/vps-checker-backend:latest
+
+      - name: Build and push frontend
+        uses: docker/build-push-action@v6
+        with:
+          context: ./frontend/frontFiles
+          push: true
+          tags: ghcr.io/mishazorin/vps-checker-frontend:latest
