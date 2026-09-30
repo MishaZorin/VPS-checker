@@ -1,0 +1,69 @@
+services:
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: vps_checker_db
+    restart: unless-stopped
+
+    env_file:
+      - .env
+
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
+
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+    networks:
+      - secure_network
+
+
+  backend:
+    image: ghcr.io/mishazorin/vps-checker-backend:latest
+    container_name: vps-checker-backend
+    restart: unless-stopped
+
+    env_file:
+      - .env
+
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+    depends_on:
+      - postgres
+
+    ports:
+      - "4001:3000"
+
+    volumes:
+      - ./ssh-keys:/app/ssh:ro
+
+    networks:
+      - secure_network
+
+
+  frontend:
+    image: ghcr.io/mishazorin/vps-checker-frontend:latest
+    container_name: vps-checker-frontend
+    restart: unless-stopped
+
+    depends_on:
+      - backend
+
+    ports:
+      - "4002:80"
+
+    networks:
+      - secure_network
+
+
+volumes:
+  pgdata:
+    driver: local
+
+
+networks:
+  secure_network:
+    driver: bridge
