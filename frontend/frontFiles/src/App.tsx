@@ -6,12 +6,11 @@ interface Server {
   host: string;
   username: string;
   password: string;
-  online: boolean;
 }
 
 
-const API_URL = '/api';
-
+// const API_URL = '/api';
+const API_URL = 'http://localhost:3000'; 
 // Все метрики, которые нужно получить одним кликом
 const METRICS = ['uptime', 'ram', 'disk', 'cpu', 'ports', 'processes', 'docker', 'logs','top','failedUnits','failedConnections'];
 
@@ -20,16 +19,6 @@ interface MetricResult {
   value: string;
 }
 
-// const METRIC_ICONS: Record<string, string> = {
-//   uptime: '⏱',
-//   ram: '🧠',
-//   disk: '💾',
-//   cpu: '⚡',
-//   ports: '🔌',
-//   processes: '📋',
-//   docker: '🐳',
-//   logs: '📜',
-// };
 
 export default function App() {
 // чтобы приложение узнало о вашей авторизации мгновенно
@@ -54,6 +43,7 @@ const [token, setToken] = useState<string | null>(() => {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [results, setResults] = useState<MetricResult[]>([]);
   const [loading, setLoading] = useState(false);
+  const [connectionError, setConnectionError] = useState<string | null>(null);
 //   useEffect(() => {
 //   if (!activeId) return;
 
@@ -307,6 +297,7 @@ async function handleAddServer() {
     console.error(err);
   }
 }
+
 const handleDeleteServer = async (serverId: string) => {
   try {
     const res = await fetch(`${API_URL}/servers/${serverId}`, {
@@ -331,17 +322,19 @@ const handleDeleteServer = async (serverId: string) => {
 
     // Очищаем результаты только после успешного удаления
     setResults([]);
+    setConnectionError('')
 
   } catch (error) {
     console.error("Ошибка при удалении сервера:", error);
   }
 };
 
-  
+
   const handleShowMetrics = async (serverId: string) => {
     setActiveId(serverId);
     setLoading(true);
     setResults([]);
+    setConnectionError(null)
 
     const server = servers.find((s) => s.id === serverId);
     if (!server) {
@@ -367,8 +360,11 @@ const handleDeleteServer = async (serverId: string) => {
         });
 
         const text = res.ok ? await res.text() : `Ошибка: ${res.status}`;
+        
         return { label: metricName, value: text.trim() };
       } catch (err) {
+        alert('не те данные (сеть): ' + err);
+    setConnectionError('Incorrect data!')
         return { label: metricName, value: `Ошибка: ${err}` };
       }
     });
@@ -376,7 +372,14 @@ const handleDeleteServer = async (serverId: string) => {
     const allResults = await Promise.all(requests);
     setResults(allResults);
     setLoading(false);
+     const allFailed = allResults.every((r) => r.value === null);
+  if (allFailed) {
+    setConnectionError('Incorrect data!');
+  }
+    
+
   };
+  
 
 
   if (!token) {
@@ -462,6 +465,7 @@ const handleDeleteServer = async (serverId: string) => {
         <button className="btn-secondary" onClick={handleConnectTelegram}>
   Подключить Telegram
 </button>
+  
       </header>
 
       <section className="card">
@@ -527,7 +531,7 @@ const handleDeleteServer = async (serverId: string) => {
               key={s.id}
               className={s.id === activeId ? 'server-row active' : 'server-row'}
             >
-              <span className={s.online ? 'status online' : 'status offline'} />
+              
               <span className="server-host">{s.host}</span>
               <span className="server-username">{s.username}</span>
               <button className="btn-secondary" onClick={() => handleShowMetrics(s.id)}>
@@ -541,6 +545,11 @@ const handleDeleteServer = async (serverId: string) => {
           ))}
         </div>
       </section>
+      {connectionError && (
+  <div style={{ color: 'red', marginBottom: '12px' }}>
+    {connectionError}
+  </div>
+)}
 
       {(loading || results.length > 0) && activeServer && (
   <section className="card server-dashboard">
@@ -557,10 +566,7 @@ const handleDeleteServer = async (serverId: string) => {
 
       <div className="server-header-actions">
 
-        <span className="status-text">
-          <span className="status online" />
-          Online
-        </span>
+       
 
         <button
           className="btn-secondary"

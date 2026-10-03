@@ -833,3 +833,46 @@ body {
   }
 }
 
+html, html[data-theme="dark"] {
+  --bg-main: #0d1117;
+  --bg-card: #161b22;
+  --bg-card-gradient: linear-gradient(180deg, #12161d 0%, #0d1117 100%);
+  --bg-input: #0d1117;
+  --bg-secondary-btn: #21262d;
+  
+  --border-main: #30363d;
+  --border-secondary: #21262d;
+  
+  --text-main: #e6edf3;
+  --text-secondary: #8b949e;
+  --text-link: #58a6ff;
+  --text-heading: #c9d1d9;
+  
+  --accent-blue: #388bfd;
+  --accent-blue-alpha: #1f6feb22;
+  --accent-green: #238636;
+  --accent-green-hover: #2e0a43; /* Исправлено для темного */
+  --accent-green-hover: #2ea043;
+}
+
+/* Светлая тема */
+html[data-theme="light"] {
+  --bg-main: #f6f8fa;
+  --bg-card: #ffffff;
+  --bg-card-gradient: linear-gradient(180deg, #ffffff 0%, #f6f8fa 100%);
+  --bg-input: #ffffff;
+  --bg-secondary-btn: #f6f8fa;
+  
+  --border-main: #d0d7de;
+  --border-secondary: #d8dee4;
+  
+  --text-main: #1f2328;
+  --text-secondary: #65717c;
+  --text-link: #0969da;
+  --text-heading: #1f2328;
+  
+  --accent-blue: #0969da;
+  --accent-blue-alpha: #54aeff1a;
+  --accent-green: #1f883d;
+  --accent-green-hover: #1a7f37;
+}
