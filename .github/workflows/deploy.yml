@@ -1,12 +1,14 @@
 name: Deploy VPS Checker
 
 on:
-  push:
-    branches:
-      - master
+  workflow_run:
+    workflows: ["VPS Checker CI"]
+    types:
+      - completed
 
 jobs:
   deploy:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
 
     steps:
@@ -19,5 +21,7 @@ jobs:
 
           script: |
             cd /var/www/second-app
-            git pull origin master
-            docker compose up -d --build
+
+            docker compose -f docker-compose.prod.yml pull
+
+            docker compose -f docker-compose.prod.yml up -d
