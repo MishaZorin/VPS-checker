@@ -459,6 +459,7 @@ const handleDeleteServer = async (serverId: string) => {
     <div className="page">
       <header className="header">
         <h1>VPS Checker</h1>
+        
         <button className="btn-secondary" onClick={handleLogout}>
           Выйти
         </button>
@@ -518,7 +519,7 @@ const handleDeleteServer = async (serverId: string) => {
 
 
         <button className="btn-primary" onClick={handleAddServer}>
-          Добавить сервер
+          Добавить сервера
         </button>
       </section>
 
