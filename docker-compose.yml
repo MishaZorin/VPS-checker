@@ -23,7 +23,7 @@ services:
     depends_on:
       - postgres
     ports:
-      - "4001:3000"
+      - "8082:3000"
     volumes:
       - ./ssh-keys:/app/ssh:ro
     networks:
@@ -34,7 +34,7 @@ services:
     container_name: vps-checker-frontend
     restart: unless-stopped
     ports:
-      - "4002:80"
+      - "8083:80"
     depends_on:
       - backend
     networks:
