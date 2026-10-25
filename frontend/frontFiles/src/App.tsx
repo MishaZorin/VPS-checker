@@ -11,7 +11,7 @@ interface Server {
 
 
 const API_URL = 'http://188.242.124.186:8083'; 
-// Все метрики, которые нужно получить одним кликом
+
 const METRICS = ['uptime', 'ram', 'disk', 'cpu', 'ports', 'processes', 'docker', 'logs','top','failedUnits','failedConnections'];
 
 interface MetricResult {
