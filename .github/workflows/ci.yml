@@ -36,8 +36,11 @@ jobs:
         run: npm run build
 
 
+  ```yaml
   docker:
     needs: backend
+    # Публикуем образы только после push в master.
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
     runs-on: ubuntu-latest
 
     steps:
@@ -64,3 +67,4 @@ jobs:
           context: ./frontend/frontFiles
           push: true
           tags: ghcr.io/mishazorin/vps-checker-frontend:latest
+```

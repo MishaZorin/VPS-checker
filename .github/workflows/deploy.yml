@@ -1,3 +1,4 @@
+```yaml
 name: Deploy VPS Checker
 
 on:
@@ -6,9 +7,16 @@ on:
     types:
       - completed
 
+permissions:
+  contents: read
+
 jobs:
   deploy:
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    if: >-
+      ${{
+        github.event.workflow_run.conclusion == 'success' &&
+        github.event.workflow_run.head_branch == 'master'
+      }}
     runs-on: ubuntu-latest
 
     steps:
@@ -21,7 +29,16 @@ jobs:
           port: ${{ secrets.VPS_SSH_PORT }}
 
           script: |
+            set -e
+
             cd /home/admin/vps-checker/VPS-checker
-            git pull origin master
-            docker compose -f docker-compose.prod.yml pull
-            docker compose -f docker-compose.prod.yml up -d
+
+            echo "Downloading latest images..."
+            docker compose -f docker-compose.prod.yml pull backend frontend
+
+            echo "Recreating application containers..."
+            docker compose -f docker-compose.prod.yml up -d --remove-orphans
+
+            echo "Container status:"
+            docker compose -f docker-compose.prod.yml ps
+```
