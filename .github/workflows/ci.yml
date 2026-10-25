@@ -67,4 +67,3 @@ jobs:
           context: ./frontend/frontFiles
           push: true
           tags: ghcr.io/mishazorin/vps-checker-frontend:latest
-```
