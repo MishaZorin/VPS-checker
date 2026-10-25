@@ -8,10 +8,7 @@ interface Server {
   password: string;
 }
 
-
-
 const API_URL = 'http://188.242.124.186:8083'; 
-
 const METRICS = ['uptime', 'ram', 'disk', 'cpu', 'ports', 'processes', 'docker', 'logs','top','failedUnits','failedConnections'];
 
 interface MetricResult {
