@@ -36,7 +36,7 @@ jobs:
         run: npm run build
 
 
-  ```yaml
+
   docker:
     needs: backend
     # Публикуем образы только после push в master.
