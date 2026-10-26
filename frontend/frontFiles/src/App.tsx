@@ -15,10 +15,7 @@ interface MetricResult {
   label: string;
   value: string;
 }
-
-
 export default function App() {
-// чтобы приложение узнало о вашей авторизации мгновенно
 const [token, setToken] = useState<string | null>(() => {
   return localStorage.getItem('token');
 });
@@ -147,7 +144,7 @@ const [token, setToken] = useState<string | null>(() => {
     headers: { Authorization: `Bearer ${token}` },
   });
   const data = await res.json();
-  window.open(data.link, '_blank'); // откроет Telegram с уже готовым кодом
+  window.open(data.link, '_blank'); 
 }
 const getMetricValue = (label: string) => {
   return results.find((r) => r.label === label)?.value ?? '';
